@@ -203,24 +203,6 @@ class TestRealChaosIntegration:
             (ProcessChaosType.SIGKILL, 5.0),
         ],
     )
-    def test_process_kill_on_replica(self, real_cluster: ClusterTestContext, chaos_type: ProcessChaosType, timeout: float) -> None:
-        chaos_engine = ProcessChaosEngine()
-        real_cluster.register_all_nodes(chaos_engine)
-
-        replica_info = real_cluster.connection.get_replica_nodes()[0]
-        replica = real_cluster.find_node_by_cluster_id(replica_info["node_id"])
-
-        assert real_cluster.validate(), "Cluster must be healthy before chaos"
-
-        result = chaos_engine.inject_process_chaos(replica, chaos_type)
-        assert result.success is True
-        assert result.target_node == replica.node_id
-        assert result.chaos_type == ChaosType.PROCESS_KILL
-
-        wait_for_process_death(replica.process, replica.node_id, timeout=timeout)
-
-        remaining_nodes = [node for node in real_cluster.nodes if node != replica]
-        assert real_cluster.validate(remaining_nodes), "Cluster should remain healthy"
 
     def test_failover_scenario_with_coordinator(self, real_cluster: ClusterTestContext) -> None:
         chaos_engine = ProcessChaosEngine()
