@@ -196,14 +196,6 @@ class TestRealChaosIntegration:
 
         chaos_engine.cleanup_chaos(real_cluster.connection.cluster_id)
 
-    @pytest.mark.parametrize(
-        "chaos_type, timeout",
-        [
-            (ProcessChaosType.SIGTERM, 30.0),  # Increased timeout for graceful shutdown
-            (ProcessChaosType.SIGKILL, 5.0),
-        ],
-    )
-
     def test_failover_scenario_with_coordinator(self, real_cluster: ClusterTestContext) -> None:
         chaos_engine = ProcessChaosEngine()
         coordinator = ChaosCoordinator(chaos_engine)
