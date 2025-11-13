@@ -14,10 +14,7 @@ import logging
 import time
 import random
 from typing import Optional, List
-from ..models import (
-    Operation, ChaosConfig, ChaosResult, NodeInfo, 
-    ProcessChaosType, ChaosType, TargetSelection
-)
+from ..models import Operation, ChaosConfig, ChaosResult, NodeInfo, ProcessChaosType, ChaosType, TargetSelection, ClusterConnection
 from ..chaos_engine.base import ProcessChaosEngine
 
 logging.basicConfig(format='%(levelname)-5s | %(filename)s:%(lineno)-3d | %(message)s', level=logging.INFO, force=True)
@@ -58,7 +55,8 @@ class ChaosCoordinator:
         self, 
         operation: Operation, 
         chaos_config: ChaosConfig,
-        cluster_nodes: List[NodeInfo]
+        cluster_nodes: List[NodeInfo],
+        cluster_connection: ClusterConnection = None
     ) -> List[ChaosResult]:
         """
         Coordinate chaos injection with a cluster operation based on timing configuration.
@@ -69,7 +67,7 @@ class ChaosCoordinator:
         
         try:
             # Select target node for chaos
-            target_node = self._select_chaos_target(cluster_nodes, chaos_config.target_selection)
+            target_node = self._select_chaos_target(cluster_nodes, chaos_config.target_selection, cluster_connection)
             
             if not target_node:
                 logger.warning("No suitable chaos target found")
@@ -119,11 +117,7 @@ class ChaosCoordinator:
         
         return chaos_results
     
-    def execute_chaos_during_operation(
-        self,
-        target_node: NodeInfo,
-        chaos_config: ChaosConfig
-    ) -> ChaosResult:
+    def execute_chaos_during_operation(self, target_node: NodeInfo, chaos_config: ChaosConfig) -> ChaosResult:
         """
         Execute chaos injection during operation execution.
         This is typically called by the operation orchestrator at the appropriate time.
@@ -147,11 +141,6 @@ class ChaosCoordinator:
             
             result = self.chaos_engine.inject_process_chaos(target_node, process_chaos_type)
             
-            if result.success:
-                logger.info(f"Successfully injected chaos on {target_node.node_id}")
-            else:
-                logger.error(f"Failed to inject chaos on {target_node.node_id}: {result.error_message}")
-            
             return result
         else:
             # Future chaos types (network chaos, etc.)
@@ -166,44 +155,63 @@ class ChaosCoordinator:
                 error_message=f"Unsupported chaos type: {chaos_config.chaos_type}"
             )
     
-    def _select_chaos_target(
-        self, 
-        cluster_nodes: List[NodeInfo], 
-        target_selection: TargetSelection
-    ) -> Optional[NodeInfo]:
+    def _select_chaos_target(self, cluster_nodes: List[NodeInfo], target_selection: TargetSelection, cluster_connection: ClusterConnection = None) -> Optional[NodeInfo]:
         """
         Select a target node for chaos injection based on selection strategy.
         """
         if not cluster_nodes:
             return None
         
+        # Filter out dead nodes (process has terminated)
+        live_nodes = [node for node in cluster_nodes if node.process and node.process.poll() is None]
+        
+        if not live_nodes:
+            logger.warning("No live nodes available for chaos injection")
+            return None
+        
+        # Get current cluster topology with updated roles if connection available
+        current_topology = None
+        if cluster_connection:
+            try:
+                current_topology = cluster_connection.get_live_nodes()
+            except Exception as e:
+                logger.debug(f"Could not get live topology: {e}")
+        
         strategy = target_selection.strategy
         
         if strategy == "specific":
             # Select from specific nodes
             if target_selection.specific_nodes:
-                for node in cluster_nodes:
+                for node in live_nodes:
                     if node.node_id in target_selection.specific_nodes:
                         return node
             return None
         
         elif strategy == "primary_only":
-            # Select only from primary nodes
-            primary_nodes = [node for node in cluster_nodes if node.role == 'primary']
+            if current_topology:
+                primary_ports = [n['port'] for n in current_topology if n['role'] == 'primary']
+                primary_nodes = [node for node in live_nodes if node.port in primary_ports]
+            else:
+                primary_nodes = [node for node in live_nodes if node.role == 'primary']
+            
             if primary_nodes:
                 return random.choice(primary_nodes)
             return None
         
         elif strategy == "replica_only":
-            # Select only from replica nodes
-            replica_nodes = [node for node in cluster_nodes if node.role == 'replica']
+            if current_topology:
+                replica_ports = [n['port'] for n in current_topology if n['role'] == 'replica']
+                replica_nodes = [node for node in live_nodes if node.port in replica_ports]
+            else:
+                replica_nodes = [node for node in live_nodes if node.role == 'replica']
+            
             if replica_nodes:
                 return random.choice(replica_nodes)
             return None
         
         elif strategy == "random":
             # Select randomly from all nodes
-            return random.choice(cluster_nodes)
+            return random.choice(live_nodes)
         
         else:
             logger.warning(f"Unknown target selection strategy: {strategy}")
@@ -227,11 +235,9 @@ class ChaosCoordinator:
             if cluster_id in self.active_chaos_scenarios:
                 del self.active_chaos_scenarios[cluster_id]
             
-            logger.info(f"Chaos cleanup completed for cluster {cluster_id}")
             return success
             
         except Exception as e:
-            logger.error(f"Failed to cleanup chaos for cluster {cluster_id}: {e}")
             return False
     
     def get_active_chaos_count(self) -> int:
