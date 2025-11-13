@@ -4,18 +4,20 @@ Fuzzer Engine - Main orchestrator for test scenario execution
 import time
 import logging
 from typing import Optional
-from ..models import (
-    Scenario, ExecutionResult, DSLConfig, ValidationResult,
-    ClusterConnection, ClusterStatus
-)
+from ..models import Scenario, ExecutionResult, DSLConfig, ValidationResult, ClusterConnection, ClusterStatus
 from ..interfaces import IFuzzerEngine
+from ..valkey_client.load_data import load_all_slots
 from .test_case_generator import ScenarioGenerator
 from .cluster_coordinator import ClusterCoordinator
 from .chaos_coordinator import ChaosCoordinator
 from .operation_orchestrator import OperationOrchestrator
 from .state_validator import StateValidator
 from .test_logger import FuzzerLogger
-from .error_handler import (ErrorHandler, ErrorContext, ErrorCategory, ErrorSeverity, RetryConfig)
+from .error_handler import ErrorHandler, ErrorContext, ErrorCategory, ErrorSeverity, RetryConfig
+
+cli_logger = logging.getLogger('cli')
+cli_logger.addHandler(logging.StreamHandler())
+cli_logger.propagate = False
 
 cli_logger = logging.getLogger('cli')
 cli_logger.addHandler(logging.StreamHandler())
@@ -328,13 +330,10 @@ class FuzzerEngine(IFuzzerEngine):
         )
         
         if success:
-            logger.info(f"Cluster created successfully: {cluster_instance.cluster_id}")
+            logger.info(f"Cluster created successfully - Cluster ID: {cluster_instance.cluster_id}")
         else:
             logger.error("All cluster creation attempts failed")
-            self.logger.log_error(
-                "Cluster creation failed after all retries",
-                {"attempts": max_retries}
-            )
+            self.logger.log_error("Cluster creation failed after all retries", {"attempts": max_retries})
         
         return cluster_instance if success else None
     
@@ -364,12 +363,13 @@ class FuzzerEngine(IFuzzerEngine):
         
         if not success:
             logger.error("Cluster failed readiness validation after all retries")
-            self.logger.log_error(
-                "Cluster readiness validation failed",
-                {"attempts": max_retries, "cluster_id": cluster_id}
-            )
+            self.logger.log_error("Cluster readiness validation failed", {"attempts": max_retries, "cluster_id": cluster_id})
         
         return success
+    
+    def _load_test_data(self, cluster_connection: ClusterConnection):
+        """Load test data into the cluster for validation purposes"""
+        load_all_slots(cluster_connection, keys_per_slot=5)
     
     def _cleanup_resources(self, cluster_instance, cluster_connection):
         """

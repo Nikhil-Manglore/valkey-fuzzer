@@ -48,9 +48,9 @@ class FuzzerCLI:
         if args.config:
             try:
                 self.config = self.load_config_file(args.config)
-                print(f"✓ Loaded configuration from {args.config}")
+                print(f"Loaded configuration from {args.config}")
             except Exception as e:
-                print(f"✗ Failed to load config: {e}")
+                print(f"Failed to load config: {e}")
                 return 1
         
         # Display test parameters
@@ -86,7 +86,7 @@ class FuzzerCLI:
                     seed += 1
                     
             except Exception as e:
-                print(f"✗ Test failed with exception: {e}")
+                print(f"Test failed with exception: {e}")
                 if args.verbose:
                     traceback.print_exc()
                 return 1
@@ -114,7 +114,7 @@ class FuzzerCLI:
         try:
             # Load DSL configuration
             dsl_config = DSLLoader.load_from_file(str(dsl_path))
-            print(f"✓ Loaded DSL from {args.file}")
+            print(f"Loaded DSL from {args.file}")
             print()
             
             # Run test
@@ -132,7 +132,7 @@ class FuzzerCLI:
             return 0 if result.success else 1
             
         except Exception as e:
-            print(f"✗ DSL test failed: {e}")
+            print(f"DSL test failed: {e}")
             if args.verbose:
                 traceback.print_exc()
             return 1
@@ -149,16 +149,16 @@ class FuzzerCLI:
         try:
             # Load DSL
             dsl_config = DSLLoader.load_from_file(str(dsl_path))
-            print("✓ DSL file loaded successfully")
+            print("DSL file loaded successfully")
             
             # Parse and validate
             generator = ScenarioGenerator()
             
             scenario = generator.parse_dsl_config(dsl_config.config_text)
-            print("✓ DSL parsed successfully")
+            print("DSL parsed successfully")
             
             generator.validate_scenario(scenario)
-            print("✓ Scenario validated successfully")
+            print("Scenario validated successfully")
             
             # Print scenario summary
             print("\n" + "=" * 60)
@@ -176,11 +176,11 @@ class FuzzerCLI:
                 for i, op in enumerate(scenario.operations, 1):
                     print(f"  {i}. {op.type.value} on {op.target_node}")
             
-            print("\n✓ DSL configuration is valid!")
+            print("\nDSL configuration is valid!")
             return 0
             
         except Exception as e:
-            print(f"\n✗ Validation failed: {e}")
+            print(f"\nValidation Failed: {e}")
             if args.verbose:
                 traceback.print_exc()
             return 1
@@ -195,7 +195,7 @@ class FuzzerCLI:
     
     def _print_summary_result(self, result: ExecutionResult):
         """Print summary of test result"""
-        status = "✓ PASSED" if result.success else "✗ FAILED"
+        status = "PASSED" if result.success else "FAILED"
         duration = result.end_time - result.start_time
         
         print(f"\nScenario: {result.scenario_id}")
@@ -219,7 +219,7 @@ class FuzzerCLI:
         if result.chaos_events:
             print("\nChaos Events:")
             for event in result.chaos_events:
-                status = "✓" if event.success else "✗"
+                status = "[PASS]" if event.success else "[FAIL]"
                 duration = (event.end_time - event.start_time) if event.end_time else 0
                 print(f"  {status} {event.chaos_type.value} on {event.target_node} "
                       f"({duration:.2f}s)")
@@ -230,11 +230,11 @@ class FuzzerCLI:
         if result.validation_results:
             print("\nValidation Results:")
             final = result.validation_results[-1]
-            print(f"  Slot Coverage: {'✓' if final.slot_coverage else '✗'}")
+            print(f"  Slot Coverage: {'[PASS]' if final.slot_coverage else '[FAIL]'}")
             print(f"  Slot Conflicts: {len(final.slot_conflicts)}")
-            print(f"  Replicas Synced: {'✓' if final.replica_sync.all_replicas_synced else '✗'}")
-            print(f"  Nodes Connected: {'✓' if final.node_connectivity.all_nodes_connected else '✗'}")
-            print(f"  Data Consistent: {'✓' if final.data_consistency.consistent else '✗'}")
+            print(f"  Replicas Synced: {'[PASS]' if final.replica_sync.all_replicas_synced else '[FAIL]'}")
+            print(f"  Nodes Connected: {'[PASS]' if final.node_connectivity.all_nodes_connected else '[FAIL]'}")
+            print(f"  Data Consistent: {'[PASS]' if final.data_consistency.consistent else '[FAIL]'}")
             print(f"  Convergence Time: {final.convergence_time:.2f}s")
             print(f"  Replication Lag: {final.replication_lag:.2f}s")
     
@@ -439,10 +439,10 @@ def main():
         elif args.command == 'validate':
             return cli.validate_dsl(args)
     except KeyboardInterrupt:
-        print("\n\nInterrupted by user")
+        print("\n\nValkey Fuzzer process was interrupted by user")
         return 130
     except Exception as e:
-        print(f"\n✗ Unexpected error: {e}")
+        print(f"\nUnexpected error: {e}")
         if hasattr(args, 'verbose') and args.verbose:
             traceback.print_exc()
         return 1

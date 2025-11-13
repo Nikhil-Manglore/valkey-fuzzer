@@ -9,11 +9,7 @@ from dataclasses import dataclass
 from typing import Iterable, List
 
 from src.chaos_engine import ChaosCoordinator, ChaosScenarioState, ProcessChaosEngine
-from src.cluster_orchestrator.orchestrator import (
-    ClusterManager,
-    ConfigurationManager,
-    PortManager,
-)
+from src.cluster_orchestrator.orchestrator import ClusterManager, ConfigurationManager, PortManager
 from src.models import (
     ChaosConfig,
     ChaosCoordination,
@@ -123,7 +119,7 @@ def _build_cluster(num_shards: int, replicas: int, base_port: int) -> ClusterTes
     topology = config_mgr.plan_topology()
     nodes = config_mgr.spawn_all_nodes(topology)
 
-    cluster_connection = cluster_mgr.form_cluster(nodes)
+    cluster_connection = cluster_mgr.form_cluster(nodes, config_mgr.cluster_id)
     if not cluster_connection:
         cluster_mgr.close_connections()
         config_mgr.cleanup_cluster(nodes)

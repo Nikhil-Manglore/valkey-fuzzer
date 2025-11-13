@@ -7,10 +7,8 @@ import logging
 from pathlib import Path
 from typing import List, Dict, Any, Optional
 from datetime import datetime
-from ..models import (
-    Scenario, Operation, ChaosResult, ValidationResult, 
-    ExecutionResult, ClusterStatus, NodeInfo
-)
+from ..models import Scenario, Operation, ChaosResult, ValidationResult, ExecutionResult, ClusterStatus, NodeInfo
+
 
 logging.basicConfig(format='%(levelname)-5s | %(filename)s:%(lineno)-3d | %(message)s', level=logging.INFO, force=True)
 logger = logging.getLogger(__name__)
@@ -54,9 +52,7 @@ class FuzzerLogger:
             'errors': [],
             'status': 'running'
         }
-        
-        logger.info(f"Started test {scenario.scenario_id} (seed: {scenario.seed})")
-        
+                
         # Log human-readable scenario summary
         self._log_scenario_summary(scenario)
         
@@ -266,7 +262,7 @@ class FuzzerLogger:
         
         for result in test_results:
             duration = result.end_time - result.start_time
-            status = "✓ PASS" if result.success else "✗ FAIL"
+            status = "PASS" if result.success else "FAIL"
             
             report_lines.extend([
                 f"{status} | {result.scenario_id}",
