@@ -130,8 +130,9 @@ class ChaosCoordinator:
                     'should_randomize': should_randomize
                 })
             
-            # Store chaos results for this scenario
-            self.chaos_history.extend(chaos_results)
+            # Store only actual chaos results (not deferred placeholders) for this scenario
+            actual_results = [r for r in chaos_results if isinstance(r, ChaosResult)]
+            self.chaos_history.extend(actual_results)
             
         except Exception as e:
             logger.error(f"Failed to coordinate chaos with operation: {e}")

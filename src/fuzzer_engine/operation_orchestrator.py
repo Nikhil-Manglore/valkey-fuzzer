@@ -223,7 +223,7 @@ class OperationOrchestrator(IOperationOrchestrator):
     
     def wait_for_operation_completion(self, operation: Operation, cluster_id: str, timeout: float, log=None) -> bool:
         """
-        Wait for operation to complete with a simple delay
+        Wait for operation to complete and validate cluster state
         """
         if log is None:
             log = logging
@@ -234,10 +234,21 @@ class OperationOrchestrator(IOperationOrchestrator):
         log.info(f"Waiting for operation completion (timeout: {timeout:.2f}s)")
         start_time = time.time()
         
-        # Simple wait for operation to propagate
+        # Wait for cluster to stabilize
         time.sleep(min(5.0, timeout))
-        
-        elapsed = time.time() - start_time
-        log.info(f"Operation completed in {elapsed:.2f}s")
-        return True
+
+        # Validate replication links after cluster is healthy
+        max_retries = 3
+        for attempt in range(max_retries):
+            live_nodes = [n for n in self.cluster_connection.initial_nodes if n.process is None or n.process.poll() is None]
+            if self.cluster_manager.check_replication_links(live_nodes):
+                elapsed = time.time() - start_time
+                log.info(f"Operation completed successfully in {elapsed:.2f}s")
+                return True
+            if attempt < max_retries - 1:
+                log.debug(f"Replication link check attempt {attempt + 1} failed, retrying in 3s")
+                time.sleep(3)
+
+        log.warning("Replication link check failed after all retries")
+        return False
     
