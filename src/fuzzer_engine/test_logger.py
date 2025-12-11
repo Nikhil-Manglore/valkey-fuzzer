@@ -10,8 +10,7 @@ from datetime import datetime
 from ..models import Scenario, Operation, ChaosResult, ExecutionResult, ClusterStatus
 
 
-logging.basicConfig(format='%(levelname)-5s | %(filename)s:%(lineno)-3d | %(message)s', level=logging.INFO, force=True)
-logger = logging.getLogger(__name__)
+logger = logging.getLogger()
 
 
 class FuzzerLogger:
@@ -27,9 +26,7 @@ class FuzzerLogger:
         self.current_test_id: Optional[str] = None
         self.test_logs: Dict[str, Dict[str, Any]] = {}
         self.test_start_times: Dict[str, float] = {}
-        
-        logger.info(f"Test logger initialized with log directory: {self.log_dir}")
-    
+            
     def log_test_start(self, scenario: Scenario) -> None:
         """Log the start of a test scenario with immutable configuration."""
         self.current_test_id = scenario.scenario_id
@@ -57,7 +54,7 @@ class FuzzerLogger:
         
         self._write_log_to_disk(scenario.scenario_id)
     
-    def log_operation(self, operation: Operation, success: bool, details: str) -> None:
+    def log_operation(self, operation: Operation, success: bool, details: str, silent: bool = False) -> None:
         """Log a cluster operation execution with success status and details."""
         if not self.current_test_id:
             logger.warning("No active test to log operation to")
@@ -80,7 +77,8 @@ class FuzzerLogger:
         
         self.test_logs[self.current_test_id]['operation_logs'].append(operation_log)
         
-        logger.info(f"Logged operation: {operation.type.value} on {operation.target_node} - {'SUCCESS' if success else 'FAILED'}")
+        if not silent:
+            logger.info(f"Logged operation: {operation.type.value} on {operation.target_node} - {'SUCCESS' if success else 'FAILED'}")
         self._write_log_to_disk(self.current_test_id)
     
     def log_chaos_event(self, chaos_result: ChaosResult) -> None:

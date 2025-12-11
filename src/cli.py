@@ -1,7 +1,6 @@
 #!/usr/bin/env python3
 """
 Command-line interface for the Cluster Bus Fuzzer
-
 Provides commands for running random tests, DSL-based tests, and validating configurations.
 """
 import sys
@@ -9,10 +8,13 @@ import argparse
 import json
 import yaml
 import traceback
+import time
+import logging
+import logging.handlers
+import queue
 from pathlib import Path
 from typing import Dict, Any
 from datetime import datetime
-
 from .main import ClusterBusFuzzer
 from .fuzzer_engine import DSLLoader
 from .fuzzer_engine.test_case_generator import ScenarioGenerator
@@ -149,8 +151,7 @@ class FuzzerCLI:
             
         except Exception as e:
             print(f"Error: DSL test failed: {e}")
-            print(f"\nTry validating your DSL file first:")
-            print(f"  valkey-fuzzer validate {args.file}")
+            print(f"\nTry validating your DSL file first: valkey-fuzzer validate {args.file}")
             if args.verbose:
                 traceback.print_exc()
             return 1
@@ -216,6 +217,8 @@ class FuzzerCLI:
     
     def _print_summary_result(self, result: ExecutionResult):
         """Print summary of test result"""
+        time.sleep(0.1)
+        
         status = "PASSED" if result.success else "FAILED"
         duration = result.end_time - result.start_time
         
@@ -581,6 +584,20 @@ Examples:
 
 def main():
     """Main entry point for CLI"""
+
+    log_queue = queue.Queue(-1)
+    queue_handler = logging.handlers.QueueHandler(log_queue)
+
+    root = logging.getLogger()
+    root.handlers.clear()
+    root.setLevel(logging.INFO)
+    root.addHandler(queue_handler)
+
+    stream_handler = logging.StreamHandler()
+    stream_handler.setFormatter(logging.Formatter('%(levelname)-5s | %(filename)s:%(lineno)-3d | %(message)s'))
+    listener = logging.handlers.QueueListener(log_queue, stream_handler, respect_handler_level=True)
+    listener.start()
+    
     parser = create_parser()
     args = parser.parse_args()
     
@@ -598,7 +615,7 @@ def main():
     try:
         if args.command == 'cluster':
             # Validate cluster command arguments
-            if not args.dsl and args.seed is None and not args.random:
+            if not args.dsl and not args.seed and not args.random:
                 print("Error: cluster command requires either --dsl, --seed, or --random\n")
                 print("Examples:")
                 print("  valkey-fuzzer cluster --random")
@@ -608,15 +625,6 @@ def main():
             
             # Determine which cluster test mode to run
             if args.dsl:
-                if args.seed is not None or args.iterations != 1 or args.config:
-                    print("Error: --dsl mode cannot be combined with --seed, --iterations, or --config\n")
-                    return 1
-                
-                if args.export_dsl:
-                    print("Error: --dsl mode cannot be combined with --export-dsl\n")
-                    print("The --export-dsl option is only for randomly generated scenarios.")
-                    return 1
-                
                 # Run DSL-based test
                 dsl_args = type('obj', (object,), {
                     'file': args.dsl,

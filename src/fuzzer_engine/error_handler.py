@@ -12,8 +12,7 @@ from typing import Optional, Callable, Any, Dict, List
 from enum import Enum
 from dataclasses import dataclass
 
-logging.basicConfig(format='%(levelname)-5s | %(filename)s:%(lineno)-3d | %(message)s', level=logging.INFO, force=True)
-logger = logging.getLogger(__name__)
+logger = logging.getLogger()
 
 
 class ErrorSeverity(Enum):
