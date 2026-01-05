@@ -242,6 +242,9 @@ class ChaosCoordinator:
             log.info(f"Injecting {process_chaos_type.value} on {target_node.node_id}")
             
             result = self.chaos_engine.inject_process_chaos(target_node, process_chaos_type, log_buffer=log)
+            
+            # Capture role at time of kill for topology validation
+            result.target_role = target_node.role
 
             return result
         else:
