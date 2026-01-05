@@ -140,7 +140,7 @@ class ChaosCoordinator:
         return chaos_results
     
     def _convert_dict_nodes_to_nodeinfo(self, live_nodes_dict: List[dict], initial_nodes: List[NodeInfo]) -> List[NodeInfo]:
-        """Convert dictionary node representations to NodeInfo objects."""
+        """Convert dictionary node representations to NodeInfo objects with live roles."""
         node_info_list = []
         for node_dict in live_nodes_dict:
             # Find matching initial node to get full info
@@ -151,6 +151,7 @@ class ChaosCoordinator:
                 None
             )
             if matching_node:
+                matching_node.role = node_dict.get('role', matching_node.role)
                 node_info_list.append(matching_node)
             else:
                 # Create a basic NodeInfo from the dict if no match found
