@@ -80,7 +80,8 @@ class ParallelExecutor:
                             target_node,
                             deferred['chaos_config'],
                             deferred['should_randomize'],
-                            buffer
+                            buffer,
+                            cluster_connection
                         )
                         immediate_chaos.append(result)
                         # Record deferred chaos in history
