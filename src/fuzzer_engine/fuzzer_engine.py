@@ -204,10 +204,18 @@ class FuzzerEngine(IFuzzerEngine):
             )
             
             # Execute final validation with retry (consistent with per-operation validation)
+            # Create operation context for log validation
+            from dataclasses import dataclass
+            @dataclass
+            class OperationContext:
+                operations: list
+            
+            operation_context = OperationContext(operations=scenario.operations)
+            
             final_validation_result = state_validator.validate_with_retry(
                 cluster_connection,
                 expected_topology,
-                None
+                operation_context
             )
             
             # Store final validation for API consumers

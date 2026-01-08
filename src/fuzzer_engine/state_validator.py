@@ -18,6 +18,7 @@ from ..models import (
     DataConsistencyValidation, DataConsistencyValidationConfig, DataInconsistency,
     ExpectedTopology, StateValidationConfig, StateValidationResult
 )
+from ..validators import ShardLogValidator, LogValidationResult
 from .state_validator_helpers import (
     format_node_address,
     validate_killed_vs_failed_nodes,
@@ -2469,6 +2470,42 @@ class StateValidator:
                         error_messages=error_messages,
                         display_name="Data Consistency"
                     )
+                
+                # 7. Log validation for affected shards
+                log_result = None
+                if self.config.check_logs and operation_context:
+                    if time.time() >= timeout_deadline:
+                        raise ValidationTimeoutError(f"Validation timeout ({self.config.validation_timeout}s) exceeded")
+                    
+                    log_validator = ShardLogValidator()
+                    all_nodes = cluster_connection.get_current_nodes(include_failed=True)
+                    
+                    # Convert dict nodes to NodeInfo for log validator
+                    from ..models import NodeInfo
+                    node_info_list = []
+                    for node_dict in all_nodes:
+                        # Find matching node from initial_nodes to get log_file path
+                        matching_node = next(
+                            (n for n in cluster_connection.initial_nodes 
+                             if n.cluster_node_id == node_dict.get('node_id')),
+                            None
+                        )
+                        if matching_node:
+                            node_info_list.append(matching_node)
+                    
+                    log_result = log_validator.validate_affected_shards(
+                        node_info_list,
+                        operation_context.operations if hasattr(operation_context, 'operations') else [],
+                        self.killed_nodes
+                    )
+                    
+                    if not log_result.success:
+                        failed_checks.append("log_validation")
+                        if log_result.findings:
+                            error_msg = f"Log validation: {len([f for f in log_result.findings if f.severity == 'error'])} error(s) found"
+                            error_messages.append(error_msg)
+                    
+                    logger.info(f"Log validation: {'PASSED' if log_result.success else 'FAILED'}")
 
         except ValidationTimeoutError as e:
             logger.error(f"Validation timeout: {e}")
