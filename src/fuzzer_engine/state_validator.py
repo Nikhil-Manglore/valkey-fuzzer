@@ -31,6 +31,7 @@ from .state_validator_helpers import (
     fetch_cluster_slot_assignments
 )
 from ..utils.valkey_utils import valkey_client, safe_query_node, query_cluster_nodes
+from ..utils.cluster_parser import parse_cluster_nodes_raw as parse_cluster_nodes_output
 
 logger = logging.getLogger(__name__)
 
@@ -83,9 +84,6 @@ def parse_slot_range(slot_info: str) -> List[int]:
         return [int(slot_info)]
     except (ValueError, IndexError):
         return []
-
-
-from ..utils.cluster_parser import parse_cluster_nodes_raw as parse_cluster_nodes_output
 
 
 class ReplicationValidator:
@@ -977,7 +975,6 @@ class SlotCoverageValidator:
     # _group_slots_into_ranges moved to state_validator_helpers.py
 
 
-
 class TopologyValidator:
     """Validates cluster topology against expectations"""
 
@@ -1343,7 +1340,6 @@ class TopologyValidator:
                 logger.warning(f"Unexpected shard {shard_id} found in cluster")
 
         return mismatches
-
 
 
 class ViewConsistencyValidator:

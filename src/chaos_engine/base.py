@@ -8,11 +8,10 @@ import logging
 from abc import ABC
 from typing import Dict, List, Optional
 from ..interfaces import IChaosEngine
-from ..models import NodeInfo, ChaosResult, ChaosType, ProcessChaosType, Operation, ChaosConfig, TargetSelection
+from ..models import NodeInfo, ChaosResult, ChaosType, ProcessChaosType, Operation, TargetSelection
 
 
 logger = logging.getLogger()
-
 
 class BaseChaosEngine(IChaosEngine, ABC):
     """Base implementation for chaos injection with common functionality"""
@@ -20,7 +19,6 @@ class BaseChaosEngine(IChaosEngine, ABC):
     def __init__(self):
         self.active_chaos: Dict[str, ChaosResult] = {}
         self.chaos_history: List[ChaosResult] = []
-        self.coordination_enabled = True
         self.node_processes: Dict[str, int] = {}  # node_id -> process_id mapping
     
     def inject_process_chaos(self, target_node: NodeInfo, chaos_type: ProcessChaosType, log_buffer=None) -> ChaosResult:
@@ -121,8 +119,6 @@ class BaseChaosEngine(IChaosEngine, ABC):
     
     def _get_node_process_id(self, target_node: NodeInfo) -> Optional[int]:
         """Get the process ID for a target node"""
-        # In a real implementation, this would query the actual process
-        # For now, we'll simulate by checking our process tracking
         return self.node_processes.get(target_node.node_id)
     
     def _execute_process_kill(self, process_id: int, chaos_type: ProcessChaosType, log_buffer=None) -> bool:
@@ -239,7 +235,7 @@ class ChaosTargetSelector:
         
         elif target_selection.strategy == "random":
             selected = self.rng.choice(nodes)
-            log.info(f"Selected random node: node id: {selected.node_id}, shard: {selected.shard_id}, role: {selected.role}, port: {selected.port}")
+            log.info(f"Selected random node: shard {selected.shard_id} - {selected.node_id}, role: {selected.role}, port: {selected.port}")
             return selected
         
         elif target_selection.strategy == "primary_only":
@@ -251,7 +247,7 @@ class ChaosTargetSelector:
             
             # Randomly select from primaries
             selected = self.rng.choice(primaries)
-            log.info(f"Selected random primary: {selected.node_id} (shard {selected.shard_id})")
+            log.info(f"Selected random primary: shard {selected.shard_id} - {selected.node_id} ")
             return selected
         
         elif target_selection.strategy == "replica_only":

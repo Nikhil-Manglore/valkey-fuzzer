@@ -97,12 +97,11 @@ class FuzzerEngine(IFuzzerEngine):
         cluster_instance = None
         cluster_connection = None
         
-        logger.info(f"Starting test execution: {scenario.scenario_id}")
+        logger.info(f"Starting test execution for scenario: {scenario.scenario_id}")
         
         # Reinitialize chaos coordinator with scenario seed for deterministic chaos selection
         self.chaos_coordinator = ChaosCoordinator(seed=scenario.seed)
         
-        # Log test start
         self.logger.log_test_start(scenario)
         
         try:
@@ -138,14 +137,14 @@ class FuzzerEngine(IFuzzerEngine):
             # Create StateValidator with config from scenario or use defaults
             if hasattr(scenario, 'state_validation_config') and scenario.state_validation_config:
                 validation_config = deepcopy(scenario.state_validation_config)
-                logger.info("Using scenario-specific StateValidationConfig")
+                logger.debug("Using scenario-specific StateValidationConfig")
             else:
                 validation_config = StateValidationConfig()
                 # Allow 'unknown' state after failovers - it's transient and expected
                 validation_config.cluster_status_config.acceptable_states = ['ok', 'unknown']
-                logger.info("Using default StateValidationConfig")
+                logger.debug("Using default StateValidationConfig")
             
-            # Adjust replication validation config based on cluster topology
+            # Adjust replication validation config based on cluster topology (for DSL scenarios)
             # If the cluster has no replicas, disable the min_replicas_per_shard check
             expected_replicas_per_shard = scenario.cluster_config.replicas_per_shard
             if expected_replicas_per_shard == 0:
@@ -169,7 +168,7 @@ class FuzzerEngine(IFuzzerEngine):
             # Track killed nodes for chaos-aware validation
             killed_nodes_tracker = set()
             
-            # Step 4: Execute operations with chaos coordination
+            # Step 4: Execute operations in parallel with chaos coordination
             logger.info("")
             logger.info(f"Step 4: Executing {len(scenario.operations)} operations in parallel")
             
@@ -236,10 +235,7 @@ class FuzzerEngine(IFuzzerEngine):
             # Determine overall success
             # Success means: operations executed and validation passed
             # Use the validation's overall_success which respects enabled/disabled checks
-            success = (
-                operations_executed > 0 and
-                final_validation_result.overall_success
-            )
+            success = (operations_executed > 0 and final_validation_result.overall_success)
             
             end_time = time.time()
             
@@ -304,10 +300,7 @@ class FuzzerEngine(IFuzzerEngine):
         cluster_data = self.cluster_coordinator.active_clusters[cluster_id]
         cluster_instance = cluster_data['instance']
         
-        cluster_connection = ClusterConnection(
-            initial_nodes=cluster_instance.nodes,
-            cluster_id=cluster_id
-        )
+        cluster_connection = ClusterConnection(initial_nodes=cluster_instance.nodes, cluster_id=cluster_id)
         
         # Use StateValidator for validation
         # Disable data consistency check for standalone validation (no test data seeded)
@@ -349,9 +342,7 @@ class FuzzerEngine(IFuzzerEngine):
         return validator.validate_state(cluster_connection, expected_topology, None)
     
     def _create_cluster_with_retry(self, scenario: Scenario, max_retries: int = 3):
-        """
-        Create cluster with retry logic for failure recovery.
-        """
+        """Create cluster with retry logic for failure recovery."""
         retry_config = RetryConfig(
             max_attempts=max_retries,
             initial_delay=1.0,
@@ -360,7 +351,7 @@ class FuzzerEngine(IFuzzerEngine):
         )
         
         def create_cluster_operation():
-            return self.cluster_coordinator.create_cluster(scenario.cluster_config)
+            return self.cluster_coordinator.create_cluster(scenario.cluster_config, seed=scenario.seed)
         
         success, cluster_instance = self.error_handler.retry_with_backoff(
             operation=create_cluster_operation,
@@ -377,9 +368,7 @@ class FuzzerEngine(IFuzzerEngine):
         return cluster_instance if success else None
     
     def _validate_cluster_readiness_with_retry(self, cluster_id: str, max_retries: int = 5) -> bool:
-        """
-        Validate cluster readiness with retry logic.
-        """
+        """Validate cluster readiness with retry logic."""
         retry_config = RetryConfig(
             max_attempts=max_retries,
             initial_delay=2.0,
@@ -406,9 +395,7 @@ class FuzzerEngine(IFuzzerEngine):
         return success
     
     def _cleanup_resources(self, cluster_instance, cluster_connection):
-        """
-        Clean up all resources with graceful degradation.
-        """
+        """Clean up all resources with graceful degradation."""
         try:
             self.error_handler.cleanup_after_failure(
                 cluster_instance=cluster_instance,

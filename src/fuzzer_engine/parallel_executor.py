@@ -6,7 +6,7 @@ import time
 from typing import List, Tuple
 from collections import defaultdict
 from concurrent.futures import ThreadPoolExecutor, as_completed
-from ..models import Operation, ChaosConfig, ChaosResult, ChaosType
+from ..models import Operation, ChaosConfig, ChaosResult
 from .operation_log_buffer import OperationLogBuffer
 
 logger = logging.getLogger()
@@ -36,7 +36,7 @@ class ParallelExecutor:
         all_chaos_events = []
         results = [None] * len(operations)
         
-        def execute_shard_operations(shard_id: str, shard_ops: List[Tuple[int, Operation]]):
+        def _execute_shard_operations(shard_ops: List[Tuple[int, Operation]]):
             """Execute all operations for a shard sequentially"""
             shard_results = []
             for op_index, operation in shard_ops:
@@ -60,7 +60,7 @@ class ParallelExecutor:
                     deferred_chaos = [c for c in chaos_results if isinstance(c, dict) and c.get('deferred')]
                     
                     # Execute operation with buffered logging
-                    success = self.operation_orchestrator.execute_operation(operation, cluster_id, log_buffer=buffer)
+                    success = self.operation_orchestrator.execute_operation(operation, log_buffer=buffer)
                     
                     # Inject deferred chaos after operation completes
                     for deferred in deferred_chaos:
@@ -84,7 +84,7 @@ class ParallelExecutor:
                             cluster_connection
                         )
                         immediate_chaos.append(result)
-                        # Record deferred chaos in history
+                        
                         if isinstance(result, ChaosResult):
                             self.chaos_coordinator.chaos_history.append(result)
                     
@@ -97,6 +97,11 @@ class ParallelExecutor:
                         f"Operation {'succeeded' if success else 'failed'}",
                         silent=False
                     )
+                    
+                    # Log chaos events associated with this operation
+                    for chaos_event in chaos_events:
+                        if isinstance(chaos_event, ChaosResult):
+                            self.fuzzer_logger.log_chaos_event(chaos_event)
                     
                     buffer.info(f"Operation {'succeeded' if success else 'failed'}")
                     
@@ -111,18 +116,25 @@ class ParallelExecutor:
         # Execute shard groups in parallel
         with ThreadPoolExecutor(max_workers=len(shard_groups)) as executor:
             futures = {
-                executor.submit(execute_shard_operations, shard_id, shard_ops): shard_id
+                executor.submit(_execute_shard_operations, shard_ops): shard_id
                 for shard_id, shard_ops in shard_groups.items()
             }
             
             # Collect results from all shards
             for future in as_completed(futures):
+                shard_id = futures[future]
                 try:
                     shard_results = future.result()
                     for op_index, executed, chaos_events, buffer in shard_results:
                         results[op_index] = (executed, chaos_events, buffer)
                 except Exception as e:
-                    logger.error(f"Shard execution failed: {e}")
+                    logger.error(f"Shard {shard_id} execution failed: {e}")
+                    # Mark all operations in this shard as failed
+                    shard_ops = shard_groups[shard_id]
+                    for op_index, operation in shard_ops:
+                        error_buffer = OperationLogBuffer(f"{op_index + 1}: {operation.type.value} on {operation.target_node}")
+                        error_buffer.error(f"Shard execution failed: {e}")
+                        results[op_index] = (0, [], error_buffer)
         
         # Flush logs in operation order
         logger.info("")
@@ -138,4 +150,3 @@ class ParallelExecutor:
         
         return operations_executed, all_chaos_events, []
     
-

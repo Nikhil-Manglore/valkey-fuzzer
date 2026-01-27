@@ -17,6 +17,7 @@ from .main import ClusterBusFuzzer
 from .fuzzer_engine import DSLLoader
 from .fuzzer_engine.test_case_generator import ScenarioGenerator
 from .models import ExecutionResult, StateValidationResult
+from .utils.cluster_utils import cleanup_logs
 
 
 class FuzzerCLI:
@@ -315,7 +316,7 @@ class FuzzerCLI:
             if val.error_messages:
                 print("\n  Validation Error Messages:")
                 for msg in val.error_messages:
-                    print(f"    • {msg}")
+                    print(f"    → {msg}")
     
     def _print_aggregate_results(self, results: list):
         """Print aggregate statistics for multiple test runs"""
@@ -390,9 +391,7 @@ class FuzzerCLI:
 
         # Add per-operation validation results if available
         if result.validation_results:
-            data['per_operation_validations'] = [
-                self._validation_to_dict(val) for val in result.validation_results
-            ]
+            data['per_operation_validations'] = [self._validation_to_dict(val) for val in result.validation_results]
 
         return data
 
@@ -590,17 +589,34 @@ Examples:
         help='Enable verbose output'
     )
     
+    # Cleanup logs command
+    cleanup_parser = subparsers.add_parser(
+        'cleanup-logs',
+        help='Clean up log files for a specific seed'
+    )
+    cleanup_parser.add_argument(
+        'seed',
+        type=int,
+        help='Seed value to clean up logs for'
+    )
+    cleanup_parser.add_argument(
+        '--data-dir',
+        type=str,
+        help='Base data directory (default: /tmp/valkey-fuzzer)'
+    )
+    cleanup_parser.add_argument(
+        '--force',
+        action='store_true',
+        help='Skip confirmation prompt'
+    )
+    
     return parser
 
 
 def main():
     """Main entry point for CLI"""
 
-    logging.basicConfig(
-        level=logging.INFO,
-        format='%(levelname)-5s | %(filename)s:%(lineno)-3d | %(message)s',
-        handlers=[logging.StreamHandler()]
-    )
+    logging.basicConfig(level=logging.INFO, format='%(levelname)-5s | %(filename)s:%(lineno)-3d | %(message)s', handlers=[logging.StreamHandler()])
     
     parser = create_parser()
     args = parser.parse_args()
@@ -639,6 +655,8 @@ def main():
                 return cli.run_random_test(args)
         elif args.command == 'validate':
             return cli.validate_dsl(args)
+        elif args.command == 'cleanup-logs':
+            return cleanup_logs(args.seed, args.data_dir or "/tmp/valkey-fuzzer", args.force)
     except KeyboardInterrupt:
         print("\n\nValkey Fuzzer process was interrupted by user")
         return 130
