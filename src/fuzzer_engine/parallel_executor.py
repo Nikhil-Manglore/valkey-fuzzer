@@ -64,7 +64,7 @@ class ParallelExecutor:
                     
                     # Inject deferred chaos after operation completes
                     for deferred in deferred_chaos:
-                        buffer.info(f"Injecting deferred chaos after operation (delay: {deferred['delay']:.2f}s)")
+                        buffer.info(f"Injecting chaos after operation (delay: {deferred['delay']:.2f}s)")
                         time.sleep(deferred['delay'])
                         
                         target_node = deferred['target_node']

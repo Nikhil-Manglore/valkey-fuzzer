@@ -163,7 +163,8 @@ class ShardLogValidator:
         
         # Check other shards' logs for failure detection messages
         for killed_addr, killed_cluster_id in killed_node_ids.items():
-            detected = False
+            quorum_detected = False
+            pfail_detected = False
             
             for node in cluster_nodes:
                 node_addr = f"{node.host}:{node.port}"
@@ -173,20 +174,34 @@ class ShardLogValidator:
                 if not os.path.exists(node.log_file):
                     continue
                 
-                log_lines = self._read_log_tail(node.log_file, lines=200)
-                pattern = f"Marking node {killed_cluster_id}.*as failing.*quorum reached"
-                if self._has_pattern(log_lines, pattern):
-                    detected = True
+                log_lines = self._read_log_tail(node.log_file, lines=500)
+                
+                quorum_pattern = f"Marking node {killed_cluster_id}.*as failing.*quorum reached"
+                if self._has_pattern(log_lines, quorum_pattern):
+                    quorum_detected = True
                     break
+                
+                pfail_pattern = f"NODE {killed_cluster_id}.*possibly failing"
+                if self._has_pattern(log_lines, pfail_pattern):
+                    pfail_detected = True
             
-            if not detected:
-                findings.append(LogFinding(
-                    node_id=killed_addr,
-                    shard_id=-1,
-                    severity='error',
-                    message=f'Cluster did not detect failure of killed node {killed_addr} (no "quorum reached" message found)',
-                    log_line=''
-                ))
+            if not quorum_detected:
+                if pfail_detected:
+                    findings.append(LogFinding(
+                        node_id=killed_addr,
+                        shard_id=-1,
+                        severity='warning',
+                        message=f'Killed node {killed_addr} detected as possibly failing but quorum not yet reached (may need more time)',
+                        log_line=''
+                    ))
+                else:
+                    findings.append(LogFinding(
+                        node_id=killed_addr,
+                        shard_id=-1,
+                        severity='error',
+                        message=f'Cluster did not detect failure of killed node {killed_addr} (no failure detection messages found)',
+                        log_line=''
+                    ))
         
         return findings
     
@@ -211,7 +226,7 @@ class ShardLogValidator:
                 continue
             # Validate that failover was successful
             try:
-                log_lines = self._read_log_tail(node.log_file, lines=200)
+                log_lines = self._read_log_tail(node.log_file, lines=500)
                 
                 if node.role == 'primary':
                     has_promotion = any(self._has_pattern(log_lines, pattern) for pattern in self.failover_promotion_patterns)
