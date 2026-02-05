@@ -128,7 +128,6 @@ class ErrorHandler:
                 
                 result = operation(**kwargs)
                 
-                # logger.info(f"{operation_name} succeeded on attempt {attempt + 1}")
                 return True, result
                 
             except Exception as e:

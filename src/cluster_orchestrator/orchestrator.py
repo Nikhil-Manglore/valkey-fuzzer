@@ -638,9 +638,7 @@ class ClusterManager:
             
             if not self.validate_cluster(nodes_in_cluster):
                 raise Exception("Cluster validation failed")
-            
-            # logger.info("Cluster initial state: Healthy")
-            
+                        
             return ClusterConnection(nodes_in_cluster, cluster_id)
         
         except Exception as e:

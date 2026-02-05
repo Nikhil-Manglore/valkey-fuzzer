@@ -24,7 +24,6 @@ class ChaosCoordinator:
 
     def register_cluster_nodes(self, cluster_id: str, nodes: List[NodeInfo]) -> None:
         """Register cluster nodes with the chaos engine for chaos injection."""
-        # logger.info(f"Registering {len(nodes)} nodes for chaos injection in cluster {cluster_id}")
         
         for node in nodes:
             # Register node process with chaos engine
