@@ -107,6 +107,7 @@ class FuzzerEngine(IFuzzerEngine):
         try:
             # Step 1: Create cluster
             logger.info("Step 1: Creating cluster")
+            logger.info("")
             cluster_instance = self._create_cluster_with_retry(scenario)
             
             if not cluster_instance:
@@ -121,12 +122,14 @@ class FuzzerEngine(IFuzzerEngine):
             # Step 2: Validate cluster readiness
             logger.info("")
             logger.info("Step 2: Validating cluster readiness")
+            logger.info("")
             if not self._validate_cluster_readiness_with_retry(cluster_instance.cluster_id):
                 raise Exception("Cluster failed readiness validation")
             
             # Step 3: Populate cluster with test data and register nodes for chaos
             logger.info("")
             logger.info("Step 3: Populating cluster with test data")
+            logger.info("")
             load_all_slots(cluster_connection, keys_per_slot=5)
             
             self.chaos_coordinator.register_cluster_nodes(cluster_instance.cluster_id, cluster_instance.nodes)
@@ -171,6 +174,7 @@ class FuzzerEngine(IFuzzerEngine):
             # Step 4: Execute operations in parallel with chaos coordination
             logger.info("")
             logger.info(f"Step 4: Executing {len(scenario.operations)} operations in parallel")
+            logger.info("")
             
             parallel_executor = ParallelExecutor(self.operation_orchestrator, self.chaos_coordinator, self.logger)
             
@@ -196,6 +200,7 @@ class FuzzerEngine(IFuzzerEngine):
             # Step 5: Final cluster validation
             logger.info("")
             logger.info("Step 5: Final cluster validation")
+            logger.info("")
             
             # Build expected topology for final validation
             expected_topology = ExpectedTopology(
@@ -286,6 +291,7 @@ class FuzzerEngine(IFuzzerEngine):
             # Step 6: Cleanup
             logger.info("")
             logger.info("Step 6: Cleaning up resources")
+            logger.info("")
             self._cleanup_resources(cluster_instance, cluster_connection)
     
     def validate_cluster_state(self, cluster_id: str):

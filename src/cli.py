@@ -616,7 +616,7 @@ Examples:
 def main():
     """Main entry point for CLI"""
 
-    logging.basicConfig(level=logging.INFO, format='%(levelname)-5s | %(filename)s:%(lineno)-3d | %(message)s', handlers=[logging.StreamHandler()])
+    logging.basicConfig(level=logging.INFO, format='%(message)s', handlers=[logging.StreamHandler()])
     
     parser = create_parser()
     args = parser.parse_args()
