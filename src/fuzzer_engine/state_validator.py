@@ -219,8 +219,8 @@ class ReplicationValidator:
                         )
 
                     # Check if replica is lagging
-                    # If offset_diff=0, replica is fully in sync regardless of master_last_io_seconds_ago
-                    if lag_seconds > config.max_acceptable_lag and replication_offset_diff > 0:
+                    is_lagging = lag_seconds > config.max_acceptable_lag and (not config.check_replication_offset or replication_offset_diff > 0)
+                    if is_lagging:
                         lag_info = ReplicaLagInfo(
                             replica_node_id=replica['node_id'],
                             replica_address=replica_address,
