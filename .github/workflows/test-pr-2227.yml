@@ -20,21 +20,17 @@ jobs:
       with:
         python-version: '3.11'
     
-    - name: Fetch and checkout PR branch
+    - name: Build Valkey from PR branch
       run: |
+        mkdir -p /tmp/valkey-build
         cd /tmp
         git init valkey-pr
         cd valkey-pr
         git remote add origin https://github.com/valkey-io/valkey.git
         git fetch --depth 1 origin pull/2227/head:pr-2227
         git checkout pr-2227
-    
-    - name: Build Valkey from PR branch
-      run: |
-        cd /tmp/valkey-pr
         make -j$(nproc)
-        echo "PR_VALKEY_SERVER=/tmp/valkey-pr/src/valkey-server" >> $GITHUB_ENV
-        echo "PR_VALKEY_CLI=/tmp/valkey-pr/src/valkey-cli" >> $GITHUB_ENV
+        mv /tmp/valkey-pr /tmp/valkey-build/valkey
     
     - name: Install fuzzer dependencies
       run: |
@@ -49,7 +45,7 @@ jobs:
         echo "Testing PR #2227 Branch"
         echo "Timestamp: $(date -u +"%Y-%m-%d %H:%M:%S UTC")"
         echo "========================================"
-        VALKEY_SERVER=$PR_VALKEY_SERVER VALKEY_CLI=$PR_VALKEY_CLI valkey-fuzzer cluster --random --verbose
+        valkey-fuzzer cluster --random --verbose
     
     - name: Print Valkey node logs
       if: always()
