@@ -20,11 +20,12 @@ jobs:
       with:
         python-version: '3.11'
     
-    - name: Clone Valkey PR branch
+    - name: Fetch and checkout PR branch
       run: |
         cd /tmp
-        git clone --depth 1 --branch unstable https://github.com/valkey-io/valkey.git valkey-pr
+        git init valkey-pr
         cd valkey-pr
+        git remote add origin https://github.com/valkey-io/valkey.git
         git fetch --depth 1 origin pull/2227/head:pr-2227
         git checkout pr-2227
     
