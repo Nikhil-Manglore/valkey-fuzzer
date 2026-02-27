@@ -30,6 +30,7 @@ jobs:
         git fetch --depth 1 origin pull/2227/head:pr-2227
         git checkout pr-2227
         make -j$(nproc)
+        sudo make install PREFIX=/usr/local
         mv /tmp/valkey-pr /tmp/valkey-build/valkey
     
     - name: Install fuzzer dependencies
