@@ -99,8 +99,6 @@ class ScenarioGenerator(ITestCaseGenerator):
             chaos_duration=random.uniform(5, 15)
         )
         
-        # If primary_only strategy, force chaos_after_operation to prevent simultaneous
-        # primary kills during parallel operations which would cause quorum loss
         if strategy == "primary_only":
             coordination = ChaosCoordination(
                 chaos_before_operation=False,
