@@ -99,13 +99,22 @@ class ScenarioGenerator(ITestCaseGenerator):
             chaos_duration=random.uniform(5, 15)
         )
         
-        chaos_phases = [
-            {"chaos_before_operation": True, "chaos_during_operation": False, "chaos_after_operation": False},
-            {"chaos_before_operation": False, "chaos_during_operation": True, "chaos_after_operation": False},
-            {"chaos_before_operation": False, "chaos_during_operation": False, "chaos_after_operation": True},
-        ]
-        selected_phase = random.choice(chaos_phases)
-        coordination = ChaosCoordination(**selected_phase)
+        # If primary_only strategy, force chaos_after_operation to prevent simultaneous
+        # primary kills during parallel operations which would cause quorum loss
+        if strategy == "primary_only":
+            coordination = ChaosCoordination(
+                chaos_before_operation=False,
+                chaos_during_operation=False,
+                chaos_after_operation=True
+            )
+        else:
+            chaos_phases = [
+                {"chaos_before_operation": True, "chaos_during_operation": False, "chaos_after_operation": False},
+                {"chaos_before_operation": False, "chaos_during_operation": True, "chaos_after_operation": False},
+                {"chaos_before_operation": False, "chaos_during_operation": False, "chaos_after_operation": True},
+            ]
+            selected_phase = random.choice(chaos_phases)
+            coordination = ChaosCoordination(**selected_phase)
         
         process_chaos_type = random.choice([ProcessChaosType.SIGKILL, ProcessChaosType.SIGTERM])
         
