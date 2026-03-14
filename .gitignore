@@ -207,3 +207,8 @@ marimo/_lsp/
 __marimo__/
 
 .*/
+!.github/
+!.github/dependabot.yml
+!.github/workflows/
+!.github/workflows/*.yml
+!.github/workflows/*.yaml

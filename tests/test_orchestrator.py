@@ -1,5 +1,6 @@
 import pytest
 import logging
+from unittest.mock import patch
 from src.cluster_orchestrator.orchestrator import PortManager, ConfigurationManager, ClusterManager
 from src.models import ClusterConfig
 
@@ -65,6 +66,37 @@ def test_configuration_manager_topology():
         assert primary.slot_start is not None
         assert primary.slot_end is not None
         assert primary.slot_start <= primary.slot_end
+
+
+@patch('os.access', return_value=True)
+@patch('os.path.isfile', return_value=True)
+def test_setup_valkey_from_source_uses_configured_binary(mock_isfile, mock_access):
+    """Test that an explicit Valkey binary path is preferred when it exists"""
+    config = ClusterConfig(
+        num_shards=3,
+        replicas_per_shard=1,
+        valkey_binary='/tmp/valkey/src/valkey-server'
+    )
+    config_mgr = ConfigurationManager(config, PortManager())
+
+    valkey_binary = config_mgr.setup_valkey_from_source()
+
+    assert valkey_binary == '/tmp/valkey/src/valkey-server'
+    mock_isfile.assert_called_once_with('/tmp/valkey/src/valkey-server')
+
+
+@patch('os.path.isfile', return_value=False)
+def test_setup_valkey_from_source_fails_when_configured_binary_missing(mock_isfile):
+    """Test that setup raises when the configured binary cannot be resolved"""
+    config = ClusterConfig(
+        num_shards=3,
+        replicas_per_shard=1,
+        valkey_binary='/tmp/missing-valkey-server'
+    )
+    config_mgr = ConfigurationManager(config, PortManager())
+
+    with pytest.raises(FileNotFoundError, match="missing-valkey-server"):
+        config_mgr.setup_valkey_from_source()
 
 
 def test_full_cluster_creation():

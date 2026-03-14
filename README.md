@@ -88,7 +88,60 @@ valkey-fuzzer cluster --random --verbose
 # Run with iterations 
 valkey-fuzzer cluster --seed 42 --iterations 2 --verbose
 
+# Run against a specific Valkey binary
+valkey-fuzzer cluster --random --valkey-binary /tmp/valkey/src/valkey-server
+
+# Run a DSL scenario against a specific Valkey binary
+valkey-fuzzer cluster --dsl examples/simple_failover.yaml --valkey-binary /tmp/valkey/src/valkey-server
+
 ```
+
+### PR-Triggered Fuzzer Runs
+
+This repo now includes a reusable GitHub Actions workflow at `.github/workflows/valkey-pr-fuzzer.yml` that can:
+
+- build Valkey from a specific ref, including a PR merge ref such as `refs/pull/123/merge`
+- fan out a configurable number of random fuzzer runs, defaulting to `10`
+- upload per-run artifacts with the console log, node logs, and JSON result payload
+- fail the overall workflow if any run fails, while still letting all matrix runs complete
+- treat a run as failed if any operation fails, any chaos injection fails, any post-operation validation wave fails, or the final validation fails
+
+If you want this to run when a label is applied in the Valkey repo, the Valkey repo needs a small caller workflow. Example:
+
+```yaml
+name: Label-triggered Valkey Cluster Fuzzer
+
+on:
+  pull_request_target:
+    types: [labeled]
+
+permissions:
+  contents: read
+
+jobs:
+  pr-fuzzer:
+    permissions:
+      contents: read
+      issues: write
+      pull-requests: write
+    if: github.event.label.name == 'run-cluster-fuzzer'
+    uses: valkey-io/valkey-fuzzer/.github/workflows/valkey-pr-fuzzer.yml@main
+    with:
+      fuzzer_repository: valkey-io/valkey-fuzzer
+      fuzzer_ref: main
+      valkey_repository: ${{ github.repository }}
+      valkey_ref: refs/pull/${{ github.event.pull_request.number }}/merge
+      pr_number: ${{ github.event.pull_request.number }}
+      pr_url: ${{ github.event.pull_request.html_url }}
+      label_name: ${{ github.event.label.name }}
+      run_count: 10
+```
+
+For the simplest setup, point both the reusable workflow ref and `fuzzer_ref` at `main`, along with the matching `fuzzer_repository`, so the caller executes the current upstream workflow and fuzzer code. If you want tighter reproducibility, switch both references to the same tag or commit SHA instead.
+
+This keeps the status visible on the Valkey PR as a normal workflow check, and the reusable workflow updates a sticky PR comment with the latest run summary. If the PR cannot produce a merge ref, for example due to merge conflicts, the workflow will fail during the Valkey checkout/build stage.
+
+You can also add a small cleanup job in the caller workflow to remove `run-cluster-fuzzer` after the run finishes, so maintainers can rerun by simply reapplying the label.
 
 ### DSL-Based Test Execution
 
