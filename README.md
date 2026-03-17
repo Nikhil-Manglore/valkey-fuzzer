@@ -98,13 +98,53 @@ valkey-fuzzer cluster --dsl examples/simple_failover.yaml --valkey-binary /tmp/v
 
 ### PR-Triggered Fuzzer Runs
 
-This repo now includes a reusable GitHub Actions workflow at `.github/workflows/valkey-pr-fuzzer.yml` that can:
+This repo includes a reusable GitHub Actions workflow at `.github/workflows/valkey-pr-fuzzer.yml` that can:
 
 - build Valkey from a specific ref, including a PR merge ref such as `refs/pull/123/merge`
 - fan out a configurable number of random fuzzer runs, defaulting to `10`
 - upload per-run artifacts with the console log, node logs, and JSON result payload
 - fail the overall workflow if any run fails, while still letting all matrix runs complete
 - treat a run as failed if any operation fails, any chaos injection fails, any post-operation validation wave fails, or the final validation fails
+
+#### Manual Trigger
+
+You can manually trigger the fuzzer workflow from the GitHub Actions UI:
+
+1. Navigate to **Actions** -> **Valkey Cluster PR Fuzzer**
+2. Click **Run workflow**
+3. Fill in the required inputs:
+   - `valkey_repository`: Repository containing the Valkey code (e.g., `valkey-io/valkey` or `username/valkey`)
+   - `valkey_ref`: Git ref to test (e.g., `refs/pull/123/merge`, `main`, or a commit SHA)
+   - `pr_number`: (Optional) PR number for summary display
+   - `pr_url`: (Optional) PR URL for summary display
+   - `run_count`: Number of random fuzzer runs (default: 10)
+   - `fuzzer_repository`: (Optional) Override fuzzer repo to use
+   - `fuzzer_ref`: (Optional) Override fuzzer ref to use
+
+Example manual trigger inputs:
+```
+valkey_repository: valkey-io/valkey
+valkey_ref: refs/pull/456/merge
+pr_number: 456
+pr_url: https://github.com/valkey-io/valkey/pull/456
+run_count: 5
+```
+
+Each fuzzer run uploads artifacts containing:
+- `console.log` - Full fuzzer execution output
+- `result.json` - Structured test results
+- `metadata.json` - Run metadata (status, seed, duration, failures)
+- `node-logs/` - Individual Valkey node logs from `/tmp/valkey-fuzzer/logs`
+
+To access these:
+1. Navigate to the workflow run in **Actions**
+2. Scroll to the **Artifacts** section at the bottom
+3. Download `valkey-pr-fuzzer-run-N` for each run
+4. Extract and examine the logs to debug failures
+
+You can also see the full Fuzzer Run and other information in the `Execute Fuzzer Run` job
+
+#### Label-Triggered Workflow
 
 If you want this to run when a label is applied in the Valkey repo, the Valkey repo needs a small caller workflow. Example:
 
@@ -372,7 +412,7 @@ The architecture is designed to support expansion in multiple dimensions:
 
 ## Daily Test Runs
 - We run a randomly generated scenario every 4 hours and the results are listed here: https://github.com/valkey-io/valkey-fuzzer/actions/workflows/fuzzer-run.yml
-- Each scheduled run uploads a `fuzzer-run-artifacts-*` bundle containing the structured `results.json`, the exported scenario DSL, and the collected node/test logs from `/tmp/valkey-fuzzer/logs`.
+- Each scheduled run uploads a `fuzzer-run-artifacts-*` bundle containing the structured `results.json`, the exported scenario DSL, and the collected node/test logs from `/tmp/valkey-fuzzer/logs`
 - These results can be analyzed to find potential bugs in Valkey
 
 ## License
